@@ -8,6 +8,7 @@ from sqlmodel import select
 from models import UserFile, FilePermission
 from datetime import datetime, timezone, timedelta
 from schemas import FileAccess, AccessCreate
+from database_operations import DatabaseOperations
 
 
 router = APIRouter()
@@ -38,13 +39,13 @@ def change_access_type(file_id, access_data: AccessCreate, session: SessionDep, 
         select(FilePermission)
         .where(FilePermission.file_id == file.id)
     ).first()
+    db_ops = DatabaseOperations(session)
     share_token = secrets.token_urlsafe(32)
     if access_data.access_type == 'anyone_with_link':
         file_permission.access_type = access_data.access_type
         file_permission.share_token = share_token
 
-        session.add(file_permission)
-        session.commit()
+        return db_ops.update_file_permission(file_permission)
 
     elif access_data.access_type == 'timed_access':
         if access_data.time_unit not in ['days', 'minutes', 'hours']:
@@ -62,9 +63,7 @@ def change_access_type(file_id, access_data: AccessCreate, session: SessionDep, 
         file_permission.access_type = access_data.access_type
         file_permission.share_token = share_token
         file_permission.expiry_time = expiry_time
-        session.add(file_permission)
-        session.commit()
-        session.refresh(file_permission)
+        return db_ops.update_file_permission(file_permission)
 
     return file_permission
 

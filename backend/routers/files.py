@@ -4,12 +4,11 @@ import os
 import shutil
 from database import SessionDep
 from auth import CurrentUserDep
-from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
-from models import Folder, UserFile, FilePermission
+from models import Folder, UserFile
 from typing import List, Optional
 from datetime import datetime, timezone
-
+from database_operations import DatabaseOperations
 
 router = APIRouter()
 
@@ -19,7 +18,6 @@ def upload_file(session: SessionDep, current_user: CurrentUserDep, file: UploadF
     """
     Endpoint for user to upload files
     """
-lets md
     # Ensure the folder with the id exists and belongs to the user
     if folder_id:
         folder = session.get(Folder, folder_id)
@@ -49,8 +47,7 @@ lets md
 
     file_size = os.path.getsize(file_path)
 
-    try:
-        new_file = UserFile(
+    new_file = UserFile(
             owner_id=current_user.id,
             filename=file.filename.replace(' ', '_'),
             filepath=file_path,
@@ -59,20 +56,9 @@ lets md
             mime_type=file.content_type,
             folder_id=folder.id if folder else None
         )
-
-        session.add(new_file)
-        session.commit()
-        session.refresh(new_file)
-
-        new_permission = FilePermission(file_id=new_file.id)
-        session.add(new_permission)
-        session.commit()
-    except SQLAlchemyError as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload file: {e}"
-        )
+    
+    db_ops = DatabaseOperations(session)
+    db_ops.upload_file(new_file)
     return {"message": "File uploaded successfully"}
 
 
@@ -144,14 +130,7 @@ def delete_file(file_id: int, session: SessionDep, current_user: CurrentUserDep)
     if os.path.exists(filepath):
         os.remove(filepath)
     
-    try:
-        session.delete(file)
-        session.commit()
-    except SQLAlchemyError:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete the file"
-        )
+    db_ops = DatabaseOperations(session)
+    db_ops.delete_file(file)
     return {"message": "File deleted Successfully"}
 

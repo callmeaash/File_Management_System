@@ -1,6 +1,6 @@
 from models import User, UserFile, Folder, FilePermission
 from typing import Optional
-from sqlmodel import Session
+from sqlmodel import Session, select
 from exceptions import handle_db_errors
 from utils import verify_password
 
@@ -26,7 +26,7 @@ class DatabaseOperations:
         self.session.commit()
         self.session.refresh(new_folder)
         return new_folder
-    
+
     @handle_db_errors("folder update")
     def update_folder(self, folder: Folder, name: str) -> Folder:
         folder.name = name
@@ -40,18 +40,17 @@ class DatabaseOperations:
         self.session.delete(folder)
         self.session.commit()
     
-    @handle_db_errors("file creation")
-    def create_file(self, file_data: dict) -> UserFile:
-        new_file = UserFile(**file_data)
-        self.session.add(new_file)
+    @handle_db_errors("file upload")
+    def upload_file(self, file_data: UserFile) -> UserFile:
+        self.session.add(file_data)
         self.session.commit()
-        self.session.refresh(new_file)
+        self.session.refresh(file_data)
         
         # Create file permission
-        new_permission = FilePermission(file_id=new_file.id)
+        new_permission = FilePermission(file_id=file_data.id)
         self.session.add(new_permission)
         self.session.commit()
-        return new_file
+        return file_data
     
     @handle_db_errors("file deletion")
     def delete_file(self, file: UserFile) -> None:
@@ -68,12 +67,11 @@ class DatabaseOperations:
     @handle_db_errors("user authentication")
     def authenticate_user(self, email: str, password: str) -> Optional[User]:
         """Authenticate user with comprehensive error handling"""
-        user = self.get_user_by_email(email)
+        user = self.session.exec(select(User).where(User.email == email)).first()
         
         if not user:
             return None
             
         if not verify_password(password, user.password):
             return None
-            
         return user

@@ -24,7 +24,6 @@ def handle_database_error(e: SQLAlchemyError, operation: str) -> None:
     if isinstance(e, IntegrityError):
         error_msg = str(e.orig).lower() if e.orig else str(e).lower()
         
-        # Handle specific integrity constraint violations
         if 'unique constraint' in error_msg or 'duplicate' in error_msg:
             if 'email' in error_msg:
                 raise HTTPException(
@@ -75,7 +74,6 @@ def handle_database_error(e: SQLAlchemyError, operation: str) -> None:
         )
     
     else:
-        # Generic database error with more context
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error occurred during {operation}. Please contact support if this persists."
@@ -92,7 +90,6 @@ def handle_db_errors(operation_name: str):
             except (IntegrityError, SQLAlchemyError) as e:
                 handle_database_error(e, operation_name)
             except HTTPException:
-                # Re-raise HTTP exceptions (like 404, 403, etc.)
                 raise
             except Exception as e:
                 logger.error(f"Unexpected error in {operation_name}: {str(e)}")

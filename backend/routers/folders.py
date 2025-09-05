@@ -6,10 +6,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
 from models import Folder
 from typing import List
-
+from database_operations import DatabaseOperations
 
 router = APIRouter()
-
 
 @router.post("/")
 def create_folder(folder_data: FolderCreate, session: SessionDep, current_user: CurrentUserDep):
@@ -24,32 +23,13 @@ def create_folder(folder_data: FolderCreate, session: SessionDep, current_user: 
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Parent folder doesnot exist"
             )
-    try:
-        new_folder = Folder(
-            name=folder_data.name,
-            owner_id=current_user.id,
-            parent_id=folder_data.parent_id
-        )
-        session.add(new_folder)
-        session.commit()
-        session.refresh(new_folder)
-    except IntegrityError:
-        raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Folder with that name already exists"
-            )
-    except SQLAlchemyError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create folder"
-        )
-    return new_folder
+    db_ops = DatabaseOperations(session)
+    return db_ops.create_folder(folder_data.name, current_user.id, folder_data.parent_id)
 
 
 @router.get("/", response_model=List[FolderRead])
 def get_folder(session: SessionDep, current_user: CurrentUserDep):
-    folders = session.exec(select(Folder)).all()
-    return folders
+    return current_user.folders
 
 
 @router.patch("/{folder_id}", response_model=FolderRead)
@@ -70,22 +50,8 @@ def update_folder(folder_id: int, folder_data: FolderRename, session: SessionDep
             detail="Not allowed to modify this folder"
         )
 
-    try:
-        folder.name = folder_data.name
-        session.add(folder)
-        session.commit()
-        session.refresh(folder)
-    except IntegrityError:
-        raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Folder with that name already exists"
-            )
-    except SQLAlchemyError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create folder"
-        )
-    return folder
+    db_ops = DatabaseOperations(session)
+    return db_ops.update_folder(folder, folder_data.name)
 
 
 @router.delete("/{folder_id}")
@@ -106,14 +72,7 @@ def delete_folder(folder_id: int, session: SessionDep, current_user: CurrentUser
             detail="Not allowed to modify this folder"
         )
 
-    try:
-        session.delete(folder)
-        session.commit()
-    except SQLAlchemyError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create folder"
-        )
-
+    db_ops = DatabaseOperations(session)
+    db_ops.delete_folder(folder)
     return {"message": "Folder deleted successfully"}
 

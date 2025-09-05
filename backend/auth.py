@@ -11,9 +11,10 @@ from models import User
 from sqlmodel import select
 
 
+
 SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/login')
 
 
 def get_user_from_db(session, id):
@@ -56,3 +57,6 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: Ses
     if not user:
         raise credentials_exception
     return user
+
+
+CurrentUserDep = Annotated[User, Depends(get_current_user)]

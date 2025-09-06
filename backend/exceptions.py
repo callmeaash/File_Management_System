@@ -16,8 +16,7 @@ class DatabaseError(HTTPException):
 
 def handle_database_error(e: SQLAlchemyError, operation: str) -> None:
     """
-    Enhanced error handler that extracts specific error information
-    and raises appropriate HTTP exceptions
+    Extract specific error and raise appropriate exception
     """
     logger.error(f"Database error during {operation}: {str(e)}")
     
@@ -29,16 +28,6 @@ def handle_database_error(e: SQLAlchemyError, operation: str) -> None:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="User with this email already exists"
-                )
-            elif 'name' in error_msg:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Item with this name already exists"
-                )
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Resource already exists with these details"
                 )
         
         elif 'foreign key constraint' in error_msg:
@@ -76,7 +65,7 @@ def handle_database_error(e: SQLAlchemyError, operation: str) -> None:
     else:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error occurred during {operation}. Please contact support if this persists."
+            detail=f"Database error occurred during {operation}"
         )
 
 
